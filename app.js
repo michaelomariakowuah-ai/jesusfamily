@@ -4,8 +4,8 @@ const mk=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=nu
 const DEF={site:{tagline:"To empower children in Jesus Christ.",verse:"“Let the little children come to me, and do not hinder them, for the kingdom of heaven belongs to such as these.” — Matthew 19:14",about:"Jesus Family is a church family devoted to loving, teaching and empowering children in Jesus Christ. Log in as admin to write your own story here.",contact:""},
  founder:{name:"Our Founder",title:"Founder",bio:"Write about our founder here.",photo:""},
  pay:{text:"Mobile Money | Add your number and account name\nBank Transfer | Add bank, account name and number"}};
-let S=JSON.parse(JSON.stringify(DEF)),G=[],SM=[],EV=[],admin=false;
-const VIEWS=["home","founder","sermons","events","gallery","prayer","give"];
+let S=JSON.parse(JSON.stringify(DEF)),G=[],SM=[],EV=[],MN=[],admin=false;
+const VIEWS=["home","founder","ministers","sermons","events","gallery","prayer","give"];
 function view(){const h=(location.hash||"#home").slice(1),v=VIEWS.includes(h)?h:"home";
  document.querySelectorAll(".view").forEach(e=>e.classList.toggle("on",e.id==="v-"+v));
  document.querySelectorAll("#links a").forEach(a=>a.classList.toggle("on",a.hash==="#"+v));scrollTo(0,0)}
@@ -27,6 +27,9 @@ function render(){
   const b=mk("div","bd");b.append(mk("h3","",x.title),mk("small","",[x.preacher,x.date].filter(Boolean).join(" · ")));if(x.notes)b.append(mk("div","",x.notes));
   if(x.link&&/^https?:\/\//.test(x.link)){const a=mk("a","","Watch / listen →");a.href=x.link;a.target="_blank";a.rel="noopener";b.append(a)}
   d.append(b);if(admin)d.append(xbtn("sermons",x));s.append(d)});
+ const m=$("mgrid");m.textContent="";if(!MN.length)m.append(mk("p","txt","No ministers added yet."));
+ MN.forEach(x=>{const d=mk("div","item mc");if(x.url)d.append(media({url:x.url,caption:x.name},"img"));else d.append(mk("div","ph","No photo"));
+  const b=mk("div","bd");b.append(mk("h3","",x.name),mk("small","",x.title||""));if(x.bio)b.append(mk("div","",x.bio));d.append(b);if(admin)d.append(xbtn("ministers",x));m.append(d)});
  const l=$("elist");l.textContent="";if(!EV.length)l.append(mk("p","txt","No events yet. Check back soon."));
  EV.forEach(x=>{const d=mk("div","item ev"),dt=mk("div","dt"),D=x.date?new Date(x.date+"T12:00:00"):null;
   dt.append(mk("b","",D?D.getDate():"•"),document.createTextNode(D?D.toLocaleString("en",{month:"short",year:"numeric"}):"TBA"));
@@ -37,10 +40,10 @@ function render(){
 function fill(){$("e-tag").value=S.site.tagline;$("e-verse").value=S.site.verse;$("e-about").value=S.site.about;$("e-contact").value=S.site.contact||"";
  $("e-fname").value=S.founder.name;$("e-ftitle").value=S.founder.title;$("e-fbio").value=S.founder.bio;$("e-pay").value=S.pay.text}
 async function load(){
- const[st,g,sm,ev]=await Promise.all([sb.from("settings").select("*"),sb.from("gallery").select("*").order("created_at",{ascending:false}),
-  sb.from("sermons").select("*").order("created_at",{ascending:false}),sb.from("events").select("*").order("date",{ascending:true,nullsFirst:false})]);
+ const[st,g,sm,ev,mn]=await Promise.all([sb.from("settings").select("*"),sb.from("gallery").select("*").order("created_at",{ascending:false}),
+  sb.from("sermons").select("*").order("created_at",{ascending:false}),sb.from("events").select("*").order("date",{ascending:true,nullsFirst:false}),sb.from("ministers").select("*").order("created_at",{ascending:true})]);
  (st.data||[]).forEach(r=>{if(DEF[r.key])S[r.key]={...DEF[r.key],...r.value}});
- G=g.data||[];SM=sm.data||[];EV=ev.data||[];render();if(!document.body.classList.contains("edit"))fill();
+ G=g.data||[];SM=sm.data||[];MN=mn.data||[];EV=ev.data||[];render();if(!document.body.classList.contains("edit"))fill();
  if(admin)loadAdmin()}
 async function loadAdmin(){
  const[d,p]=await Promise.all([sb.from("donations").select("*").order("created_at",{ascending:false}),sb.from("prayers").select("*").order("created_at",{ascending:false})]);
@@ -68,6 +71,10 @@ $("s-add").onclick=async()=>{const t=$("s-title").value.trim();if(!t){$("s-msg")
 $("e-add").onclick=async()=>{const t=$("e-title").value.trim();if(!t){$("e-msg").textContent="Add an event name.";return}
  try{await ins("events",{title:t,date:$("e-date").value||null,time:$("e-time").value,place:$("e-place").value,descr:$("e-desc").value});
   $("e-msg").textContent="Added ✓";["e-title","e-date","e-time","e-place","e-desc"].forEach(i=>$(i).value="");load()}catch(e){$("e-msg").textContent="Failed: "+e.message}};
+$("m-add").onclick=async()=>{const n=$("m-name").value.trim();if(!n){$("m-msg").textContent="Add a name.";return}
+ try{let u={url:"",path:""};const f=$("m-photo").files[0];if(f){$("m-msg").textContent="Uploading photo…";u=await upload(f,"ministers")}
+  await ins("ministers",{name:n,title:$("m-title").value,bio:$("m-bio").value,...u});
+  $("m-msg").textContent="Added ✓";["m-name","m-title","m-bio","m-photo"].forEach(i=>$(i).value="");load()}catch(e){$("m-msg").textContent="Failed: "+e.message}};
 $("p-go").onclick=async()=>{const r=$("p-req").value.trim();if(!r){$("p-msg").textContent="Please write your request.";return}
  try{await ins("prayers",{name:$("p-name").value.trim()||"Anonymous",request:r});$("p-msg").textContent="Your request has been received. We are praying with you. 🙏";$("p-req").value=$("p-name").value=""}catch(e){$("p-msg").textContent="Could not send: "+e.message}};
 $("d-go").onclick=async()=>{const n=$("d-name").value.trim(),a=parseFloat($("d-amt").value);if(!n||!(a>0)){$("d-msg").textContent="Please enter your name and amount.";return}
